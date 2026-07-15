@@ -19,8 +19,8 @@ TeoTensor unifies three ideas into one coherent framework:
 
 ## Project status
 
-Pre-alpha. The public API and documentation grow incrementally with each
-release.
+Pre-alpha. Start with the [Core API](core-api.md) — the shared estimator
+contract used by every future model.
 
 ## Getting started (development)
 
@@ -29,4 +29,3 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev,viz,docs]"
 ```
-

@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 1 Core API: `BaseEstimator`, parameter mixins
+  (`ParamMixin`, transformer/classifier/regressor/cluster/serializable),
+  validation helpers (`check_array`, `check_X_y`, `check_random_state`,
+  `check_is_fitted`), unit tests, `examples/core_dummy_estimators.py`, and
+  the Core API docs page.
 - Phase 0 bootstrap: project scaffolding, packaging (`pyproject.toml` with
   hatchling), tooling configuration (ruff, mypy strict, pytest, coverage),
   pre-commit hooks, GitHub Actions CI, MkDocs Material docs skeleton, and the
