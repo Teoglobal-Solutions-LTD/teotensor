@@ -38,6 +38,8 @@ site/
 
 # Internal development planning (not published)
 docs/teotensor_developer_roadmap.md
+ROADMAP.md
+docs/roadmap.md
 
 # IDE / OS
 .idea/

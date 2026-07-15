@@ -42,9 +42,9 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/teotensor/teotensor"
-Documentation = "https://github.com/teotensor/teotensor"
-Repository = "https://github.com/teotensor/teotensor"
+Homepage = "https://github.com/Teoglobal-Solutions-LTD/teotensor"
+Documentation = "https://github.com/Teoglobal-Solutions-LTD/teotensor"
+Repository = "https://github.com/Teoglobal-Solutions-LTD/teotensor"
 
 [tool.hatch.version]
 path = "teotensor/__init__.py"

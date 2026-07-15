@@ -1,6 +1,6 @@
 site_name: TeoTensor
 site_description: A fast, inspectable ML systems framework for Python.
-repo_url: https://github.com/teotensor/teotensor
+repo_url: https://github.com/Teoglobal-Solutions-LTD/teotensor
 
 theme:
   name: material
@@ -39,6 +39,10 @@ markdown_extensions:
       permalink: true
   - pymdownx.highlight
   - pymdownx.superfences
+
+# Keep the local developer plan out of the published docs site.
+exclude_docs: |
+  teotensor_developer_roadmap.md
 
 nav:
   - Home: index.md

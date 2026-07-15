@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Point CI triggers, project URLs, and docs `repo_url` at the organization
+  repository (`Teoglobal-Solutions-LTD/teotensor`) and the `develop` branch.
+
 ### Added
 
 - Phase 0 bootstrap: project scaffolding, packaging (`pyproject.toml` with
