@@ -1,5 +1,6 @@
 site_name: TeoTensor
 site_description: A fast, inspectable ML systems framework for Python.
+site_url: https://teoglobal-solutions-ltd.github.io/teotensor/
 repo_url: https://github.com/Teoglobal-Solutions-LTD/teotensor
 
 theme:

@@ -30,3 +30,6 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev,viz,docs]"
 ```
+
+Docs preview locally: `mkdocs serve`. Public docs are published automatically
+to GitHub Pages on each push to `develop`/`main` (see the `Docs` workflow).

@@ -46,6 +46,15 @@ teotensor/          # the importable framework package
 tests/ examples/ benchmarks/ docs/
 ```
 
+## Documentation
+
+- Local preview: `mkdocs serve` → http://127.0.0.1:8000
+- Public site (GitHub Pages): after enabling Pages → Source **GitHub Actions**,
+  each push to `develop`/`main` rebuilds and publishes the docs via the
+  `Docs` workflow (`.github/workflows/docs.yml`).
+  Expected URL:
+  https://teoglobal-solutions-ltd.github.io/teotensor/
+
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).

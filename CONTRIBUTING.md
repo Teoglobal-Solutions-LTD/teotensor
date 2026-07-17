@@ -41,3 +41,11 @@ pytest
 ```
 
 All four must pass. Update `CHANGELOG.md` under `[Unreleased]`.
+
+## Documentation site
+
+- Preview locally with `mkdocs serve`.
+- Public docs are built by `.github/workflows/docs.yml` on every push to
+  `develop`/`main` and published to GitHub Pages.
+- One-time setup in the GitHub UI: **Settings → Pages → Source =
+  GitHub Actions**.

@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- GitHub Actions workflow to build MkDocs and publish documentation to GitHub
+  Pages (`.github/workflows/docs.yml`), plus `site_url` in `mkdocs.yml`.
 - Phase 2 observability MVP: artifact types (`Trace`, `Diagnostic`, `Report`,
   `Observation`, `FigureSpec`, `TableSpec`), `export_json` /
   `export_markdown_summary` / `export_html` (browser dashboard with inline SVG),
