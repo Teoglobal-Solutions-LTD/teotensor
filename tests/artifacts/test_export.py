@@ -97,5 +97,11 @@ def test_export_html_dashboard_contains_svg_and_metrics(tmp_path: Path) -> None:
     assert "TeoTensor" in html_doc
     assert "final_loss" in html_doc
     assert "<svg" in html_doc
-    assert "polyline" in html_doc
-    assert "diag-info" in html_doc
+    assert "polyline" in html_doc or "polygon" in html_doc
+    assert "Print / Save as PDF" in html_doc
+    assert "@media print" in html_doc
+    assert "window.print()" in html_doc
+    assert "band-solo" in html_doc or "figures-solo" in html_doc
+    assert "data-tip=" in html_doc
+    assert 'class="tip-box' in html_doc or "class='tip-box" in html_doc
+    assert "class='hit'" in html_doc or 'class="hit"' in html_doc

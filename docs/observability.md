@@ -25,10 +25,23 @@ Estimator.fit(...)
         ▼
    Artifacts (dataclasses)
         │
-   ┌────┴────────────┐
-   ▼                 ▼
- export_json/md/html   viz.render_figure (optional)
+        ├─► export_html  ★ primary product UI (styled / interactive dashboard)
+        ├─► export_json / export_markdown_summary
+        └─► viz.render_figure (optional matplotlib backend)
 ```
+
+## Visualization policy
+
+**HTML dashboards are the face of TeoTensor visualization.** They must be:
+
+- stylish and readable on a single page;
+- clear for metrics, diagnostics, tables, and figures;
+- interactive where it helps (hover tooltips on chart points/bars today;
+  animations later for iterative algorithms such as K-Means centroid motion);
+- printable via **Print / Save as PDF**.
+
+Matplotlib remains available as `teotensor.viz.render_figure` for notebooks and
+custom scripts. It is **not** the default user-facing report surface.
 
 ## Architecture
 
@@ -38,7 +51,7 @@ Three packages cooperate:
 |---|---|
 | `teotensor.artifacts` | Serializable data types + exporters |
 | `teotensor.observability` | `ObservabilityMixin` inspection contract |
-| `teotensor.viz` | Optional matplotlib backend for `FigureSpec` |
+| `teotensor.viz` | Optional matplotlib backend (secondary; not the product UI) |
 
 `BaseEstimator` inherits `ObservabilityMixin`, so **every** TeoTensor model
 exposes the same methods.
@@ -143,9 +156,10 @@ export_json(obs, "observation.json")
 export_html(obs, open_browser=True)
 ```
 
-`export_html` builds a **self-contained** page: inline CSS and **inline SVG**
-charts derived from `FigureSpec`. It does not write PNG files and does not
-require a JavaScript charting CDN for the plots.
+`export_html` builds a **self-contained one-page report**: sticky toolbar with
+**Print / Save as PDF**, compact two-column layout, inline CSS, and inline SVG
+charts from `FigureSpec`. Use the browser print dialog and choose
+"Save as PDF" — no PNG files and no charting CDN are required.
 
 ## Optional matplotlib backend
 

@@ -20,6 +20,10 @@ pre-commit install
 - **Observability is not optional.** Every model exposes `report()` and
   `diagnose()`; iterative models add `trace()`. Models never draw plots
   directly — they return data or a `FigureSpec`.
+- **HTML is the primary viz UI.** Ship inspection through `export_html`
+  (styled one-page dashboards, print/PDF, interactive charts where useful).
+  Matplotlib is optional (`teotensor.viz`), not the default face of the
+  framework.
 - **Correctness before speed.** Ship a pure-NumPy baseline first; add
   accelerated backends only after profiling proves the need.
 - **Typing everywhere.** Code must pass `mypy --strict`.

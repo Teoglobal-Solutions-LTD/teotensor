@@ -1,8 +1,10 @@
-"""Visualization layer: renderers for figure and table specifications.
+"""Visualization layer: optional render backends for figure specifications.
 
-Turns ``FigureSpec``/``TableSpec`` artifacts into concrete figures. Kept
-separate from models so multiple render backends can coexist without touching
-model code.
+The **primary** visualization surface of TeoTensor is HTML
+(``teotensor.artifacts.export_html``): styled, printable, interactive
+dashboards. This package hosts secondary backends such as matplotlib for
+notebooks and custom scripts. Models never import renderers directly — they
+emit ``FigureSpec`` artifacts only.
 """
 
 from __future__ import annotations

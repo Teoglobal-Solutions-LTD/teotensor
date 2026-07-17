@@ -1,7 +1,7 @@
-"""HTML dashboard export for observability artifacts.
+"""HTML dashboards — primary visualization face of TeoTensor.
 
-Produces a self-contained HTML document (inline CSS + SVG charts). No image
-files and no JavaScript CDN dependency — open the file in any browser.
+Produces a self-contained one-page report (inline CSS, SVG charts, light JS for
+hover tooltips). Designed to be stylish, readable, and printable. No CDN.
 """
 
 from __future__ import annotations
@@ -28,7 +28,10 @@ def export_html(
     *,
     open_browser: bool = False,
 ) -> str:
-    """Render a self-contained HTML dashboard for a report or observation.
+    """Render a self-contained one-page HTML observation report.
+
+    This is TeoTensor's primary visualization surface: styled panels, SVG
+    charts with hover tooltips, and a **Print / Save as PDF** action.
 
     Parameters
     ----------
@@ -131,6 +134,14 @@ def _page(
 ) -> str:
     safe_title = html.escape(title)
     body_parts: list[str] = [
+        "<div class='toolbar no-print'>",
+        "<div class='toolbar-brand'>TeoTensor · Observation Report</div>",
+        "<div class='toolbar-actions'>",
+        "<button type='button' class='btn' onclick='window.print()'>"
+        "Print / Save as PDF</button>",
+        "</div>",
+        "</div>",
+        "<article class='report'>",
         "<header class='hero'>",
         "<p class='brand'>TeoTensor</p>",
         f"<h1>{safe_title}</h1>",
@@ -139,50 +150,42 @@ def _page(
         body_parts.append(f"<p class='lede'>{html.escape(summary)}</p>")
     body_parts.append("</header>")
 
-    if metrics:
-        body_parts.append("<section>")
-        body_parts.append("<h2>Metrics</h2>")
-        body_parts.append("<div class='metrics'>")
-        for key, value in sorted(metrics.items()):
-            body_parts.append(
-                "<div class='metric'>"
-                f"<span class='metric-key'>{html.escape(str(key))}</span>"
-                f"<span class='metric-val'>{html.escape(str(value))}</span>"
-                "</div>"
-            )
-        body_parts.append("</div></section>")
-
-    if diagnostics:
-        body_parts.append("<section>")
-        body_parts.append("<h2>Diagnostics</h2>")
-        body_parts.append("<ul class='diagnostics'>")
-        for item in diagnostics:
-            body_parts.append(
-                f"<li class='diag diag-{html.escape(item.severity)}'>"
-                f"<span class='badge'>{html.escape(item.severity)}</span>"
-                f"<code>{html.escape(item.code)}</code>"
-                f"<span>{html.escape(item.message)}</span>"
-                "</li>"
-            )
-        body_parts.append("</ul></section>")
-
-    if traces:
-        body_parts.append("<section>")
-        body_parts.append("<h2>Traces</h2>")
-        for trace in traces:
-            body_parts.append(_trace_block(trace))
-        body_parts.append("</section>")
-
-    for table in tables:
-        body_parts.append("<section>")
-        body_parts.append(f"<h2>{html.escape(table.title)}</h2>")
-        body_parts.append(_table_html(table))
-        body_parts.append("</section>")
+    if metrics or diagnostics:
+        n_top = int(bool(metrics)) + int(bool(diagnostics))
+        body_parts.append(_band_open(n_top))
+        if metrics:
+            body_parts.append("<section class='panel'>")
+            body_parts.append("<h2>Metrics</h2>")
+            body_parts.append("<div class='metrics'>")
+            for key, value in sorted(metrics.items()):
+                body_parts.append(
+                    "<div class='metric'>"
+                    f"<span class='metric-key'>{html.escape(str(key))}</span>"
+                    f"<span class='metric-val'>{html.escape(str(value))}</span>"
+                    "</div>"
+                )
+            body_parts.append("</div></section>")
+        if diagnostics:
+            body_parts.append("<section class='panel'>")
+            body_parts.append("<h2>Diagnostics</h2>")
+            body_parts.append("<ul class='diagnostics'>")
+            for item in diagnostics:
+                body_parts.append(
+                    f"<li class='diag diag-{html.escape(item.severity)}'>"
+                    f"<span class='badge'>{html.escape(item.severity)}</span>"
+                    f"<code>{html.escape(item.code)}</code>"
+                    f"<span>{html.escape(item.message)}</span>"
+                    "</li>"
+                )
+            body_parts.append("</ul></section>")
+        body_parts.append("</div>")
 
     if figures:
-        body_parts.append("<section>")
+        body_parts.append("<section class='panel'>")
         body_parts.append("<h2>Figures</h2>")
-        body_parts.append("<div class='figures'>")
+        n_fig = len(figures)
+        fig_cls = "figures figures-solo" if n_fig == 1 else "figures"
+        body_parts.append(f"<div class='{fig_cls}'>")
         for figure in figures:
             body_parts.append("<figure class='chart'>")
             body_parts.append(f"<figcaption>{html.escape(figure.title)}</figcaption>")
@@ -190,24 +193,57 @@ def _page(
             body_parts.append("</figure>")
         body_parts.append("</div></section>")
 
+    if traces or tables:
+        n_bot = int(bool(traces)) + int(bool(tables))
+        body_parts.append(_band_open(n_bot))
+        if traces:
+            body_parts.append("<section class='panel'>")
+            body_parts.append("<h2>Traces</h2>")
+            for trace in traces:
+                body_parts.append(_trace_block(trace))
+            body_parts.append("</section>")
+        if tables:
+            body_parts.append("<section class='panel'>")
+            body_parts.append("<h2>Tables</h2>")
+            for table in tables:
+                body_parts.append(
+                    f"<h3 class='table-title'>{html.escape(table.title)}</h3>"
+                )
+                body_parts.append(_table_html(table))
+            body_parts.append("</section>")
+        body_parts.append("</div>")
+
+    body_parts.append(
+        "<footer class='foot muted'>Generated by TeoTensor · "
+        "Use Print / Save as PDF for a one-page archive.</footer>"
+    )
+    body_parts.append("</article>")
     return _wrap(safe_title, "\n".join(body_parts))
 
 
+def _band_open(n_panels: int) -> str:
+    """Open a responsive band; solo panels span full width."""
+    cls = "band band-solo" if n_panels <= 1 else "band"
+    return f"<div class='{cls}'>"
+
+
 def _trace_block(trace: Trace) -> str:
+    preview = trace.records[:8]
     rows = "".join(
         "<tr>"
         + "".join(f"<td>{html.escape(str(v))}</td>" for v in record.values())
         + "</tr>"
-        for record in trace.records[:50]
+        for record in preview
     )
     headers = ""
-    if trace.records:
-        headers = "".join(
-            f"<th>{html.escape(str(key))}</th>" for key in trace.records[0]
-        )
+    if preview:
+        headers = "".join(f"<th>{html.escape(str(key))}</th>" for key in preview[0])
     more = ""
-    if len(trace.records) > 50:
-        more = f"<p class='muted'>Showing 50 of {len(trace.records)} records.</p>"
+    if len(trace.records) > len(preview):
+        more = (
+            f"<p class='muted'>Showing {len(preview)} of "
+            f"{len(trace.records)} records.</p>"
+        )
     return (
         f"<div class='trace'><h3>{html.escape(trace.name)}</h3>"
         f"<table><thead><tr>{headers}</tr></thead><tbody>{rows}</tbody></table>"
@@ -225,66 +261,35 @@ def _table_html(table: TableSpec) -> str:
 
 
 def _figure_svg(spec: FigureSpec) -> str:
-    """Render a FigureSpec as an inline SVG chart."""
-    width, height = 640, 320
-    pad_l, pad_r, pad_t, pad_b = 56, 24, 24, 48
+    """Render a FigureSpec as a polished inline SVG chart."""
+    width, height = 720, 300
+    pad_l, pad_r, pad_t, pad_b = 58, 28, 28, 52
     plot_w = width - pad_l - pad_r
     plot_h = height - pad_t - pad_b
-    accent = "#0f766e"
-    ink = "#1c1917"
-    grid = "#e7e5e4"
+    palette = {
+        "accent": "#0d9488",
+        "accent2": "#14b8a6",
+        "ink": "#0f172a",
+        "muted": "#64748b",
+        "grid": "#cbd5e1",
+        "plot_bg": "#f8fafc",
+        "card_bg": "#ffffff",
+    }
 
     try:
         if spec.kind == "line":
-            return _svg_line(
-                spec,
-                width,
-                height,
-                pad_l,
-                pad_r,
-                pad_t,
-                pad_b,
-                plot_w,
-                plot_h,
-                accent,
-                ink,
-                grid,
-            )
+            return _svg_line(spec, width, height, pad_l, pad_t, plot_w, plot_h, palette)
         if spec.kind == "bar":
-            return _svg_bar(
-                spec,
-                width,
-                height,
-                pad_l,
-                pad_r,
-                pad_t,
-                pad_b,
-                plot_w,
-                plot_h,
-                accent,
-                ink,
-                grid,
-            )
+            return _svg_bar(spec, width, height, pad_l, pad_t, plot_w, plot_h, palette)
         if spec.kind == "scatter":
             return _svg_scatter(
-                spec,
-                width,
-                height,
-                pad_l,
-                pad_r,
-                pad_t,
-                pad_b,
-                plot_w,
-                plot_h,
-                accent,
-                ink,
-                grid,
+                spec, width, height, pad_l, pad_t, plot_w, plot_h, palette
             )
     except (TypeError, ValueError, KeyError):
         pass
     return (
         f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {width} {height}'>"
-        f"<text x='24' y='40' fill='{ink}'>Unable to render "
+        f"<text x='24' y='40' fill='{palette['ink']}'>Unable to render "
         f"{html.escape(spec.kind)} chart.</text></svg>"
     )
 
@@ -296,49 +301,72 @@ def _as_floats(values: Any) -> list[float]:
     return [float(v) for v in values]
 
 
-def _svg_frame(
+def _svg_shell(
     width: int,
     height: int,
     pad_l: int,
     pad_t: int,
     plot_w: int,
     plot_h: int,
-    ink: str,
-    grid: str,
+    palette: dict[str, str],
     xlabel: str,
     ylabel: str,
-) -> str:
+) -> list[str]:
+    """Shared chart chrome: soft canvas, dashed grid, no harsh box border."""
+    uid = f"g{abs(hash((width, height, plot_w, plot_h, xlabel, ylabel))) % 10_000_000}"
     parts = [
         f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {width} {height}' "
-        f"role='img'>",
-        f"<rect x='0' y='0' width='{width}' height='{height}' fill='#ffffff'/>",
+        f"role='img' class='chart-svg'>",
+        "<defs>",
+        f"<linearGradient id='bg-{uid}' x1='0' y1='0' x2='1' y2='1'>",
+        "<stop offset='0%' stop-color='#f8fafc'/>",
+        "<stop offset='100%' stop-color='#eef2ff'/>",
+        "</linearGradient>",
+        f"<linearGradient id='area-{uid}' x1='0' y1='0' x2='0' y2='1'>",
+        f"<stop offset='0%' stop-color='{palette['accent']}' stop-opacity='0.28'/>",
+        f"<stop offset='100%' stop-color='{palette['accent']}' stop-opacity='0.02'/>",
+        "</linearGradient>",
+        f"<linearGradient id='bar-{uid}' x1='0' y1='0' x2='0' y2='1'>",
+        f"<stop offset='0%' stop-color='{palette['accent2']}'/>",
+        f"<stop offset='100%' stop-color='{palette['accent']}'/>",
+        "</linearGradient>",
+        "</defs>",
+        f"<rect x='0' y='0' width='{width}' height='{height}' rx='18' "
+        f"fill='url(#bg-{uid})'/>",
+        f"<rect x='{pad_l}' y='{pad_t}' width='{plot_w}' height='{plot_h}' "
+        f"rx='14' fill='{palette['plot_bg']}'/>",
     ]
     for i in range(5):
         y = pad_t + plot_h * i / 4
         parts.append(
             f"<line x1='{pad_l}' y1='{y:.1f}' x2='{pad_l + plot_w}' "
-            f"y2='{y:.1f}' stroke='{grid}' stroke-width='1'/>"
+            f"y2='{y:.1f}' stroke='{palette['grid']}' stroke-width='1' "
+            f"stroke-dasharray='4 6' opacity='0.85'/>"
         )
-    parts.append(
-        f"<rect x='{pad_l}' y='{pad_t}' width='{plot_w}' height='{plot_h}' "
-        f"fill='none' stroke='{ink}' stroke-width='1.2'/>"
-    )
     if xlabel:
         parts.append(
-            f"<text x='{pad_l + plot_w / 2:.1f}' y='{height - 12}' "
-            f"text-anchor='middle' fill='{ink}' font-size='13' "
+            f"<text x='{pad_l + plot_w / 2:.1f}' y='{height - 14}' "
+            f"text-anchor='middle' fill='{palette['muted']}' font-size='12' "
             f"font-family='Space Grotesk, Segoe UI, sans-serif'>"
             f"{html.escape(xlabel)}</text>"
         )
     if ylabel:
         parts.append(
-            f"<text x='16' y='{pad_t + plot_h / 2:.1f}' text-anchor='middle' "
-            f"fill='{ink}' font-size='13' "
+            f"<text x='18' y='{pad_t + plot_h / 2:.1f}' text-anchor='middle' "
+            f"fill='{palette['muted']}' font-size='12' "
             f"font-family='Space Grotesk, Segoe UI, sans-serif' "
-            f"transform='rotate(-90 16 {pad_t + plot_h / 2:.1f})'>"
+            f"transform='rotate(-90 18 {pad_t + plot_h / 2:.1f})'>"
             f"{html.escape(ylabel)}</text>"
         )
-    return "\n".join(parts)
+    parts.append(f"<!--uid:{uid}-->")
+    return parts
+
+
+def _uid_from_parts(parts: list[str]) -> str:
+    for part in parts:
+        if part.startswith("<!--uid:") and part.endswith("-->"):
+            return part[len("<!--uid:") : -3]
+    return "g0"
 
 
 def _svg_line(
@@ -346,16 +374,11 @@ def _svg_line(
     width: int,
     height: int,
     pad_l: int,
-    pad_r: int,
     pad_t: int,
-    pad_b: int,
     plot_w: int,
     plot_h: int,
-    accent: str,
-    ink: str,
-    grid: str,
+    palette: dict[str, str],
 ) -> str:
-    del pad_r, pad_b
     y = _as_floats(spec.data.get("y"))
     x_raw = spec.data.get("x")
     x = _as_floats(x_raw) if x_raw is not None else [float(i) for i in range(len(y))]
@@ -366,8 +389,14 @@ def _svg_line(
     min_y, max_y = min(y), max(y)
     if max_x == min_x:
         max_x = min_x + 1.0
-    if max_y == min_y:
+    # add headroom so the curve doesn't kiss the top edge
+    span_y = max_y - min_y
+    if span_y == 0:
+        span_y = 1.0
         max_y = min_y + 1.0
+    else:
+        max_y = max_y + 0.08 * span_y
+        min_y = min_y - 0.04 * span_y
 
     def px(xv: float) -> float:
         return pad_l + (xv - min_x) / (max_x - min_x) * plot_w
@@ -375,29 +404,47 @@ def _svg_line(
     def py(yv: float) -> float:
         return pad_t + (1.0 - (yv - min_y) / (max_y - min_y)) * plot_h
 
-    points = " ".join(f"{px(a):.1f},{py(b):.1f}" for a, b in zip(x, y, strict=True))
-    parts = [
-        _svg_frame(
-            width,
-            height,
-            pad_l,
-            pad_t,
-            plot_w,
-            plot_h,
-            ink,
-            grid,
-            str(spec.data.get("xlabel", "")),
-            str(spec.data.get("ylabel", "")),
-        ),
-        f"<polyline fill='none' stroke='{accent}' stroke-width='2.5' "
-        f"points='{points}'/>",
-    ]
-    for a, b in zip(x, y, strict=True):
+    pts = [(px(a), py(b)) for a, b in zip(x, y, strict=True)]
+    line = " ".join(f"{a:.1f},{b:.1f}" for a, b in pts)
+    area = (
+        f"{pts[0][0]:.1f},{pad_t + plot_h:.1f} "
+        + line
+        + f" {pts[-1][0]:.1f},{pad_t + plot_h:.1f}"
+    )
+    parts = _svg_shell(
+        width,
+        height,
+        pad_l,
+        pad_t,
+        plot_w,
+        plot_h,
+        palette,
+        str(spec.data.get("xlabel", "")),
+        str(spec.data.get("ylabel", "")),
+    )
+    uid = _uid_from_parts(parts)
+    parts.append(f"<polygon fill='url(#area-{uid})' points='{area}' stroke='none'/>")
+    parts.append(
+        f"<polyline fill='none' stroke='{palette['accent']}' stroke-width='3' "
+        f"stroke-linecap='round' stroke-linejoin='round' points='{line}'/>"
+    )
+    for (xv, yv), (a, b) in zip(zip(x, y, strict=True), pts, strict=True):
+        tip = html.escape(f"x={xv:.4g}, y={yv:.4g}")
         parts.append(
-            f"<circle cx='{px(a):.1f}' cy='{py(b):.1f}' r='3.5' fill='{accent}'/>"
+            f"<circle class='hit' cx='{a:.1f}' cy='{b:.1f}' r='6' "
+            f"fill='#fff' stroke='{palette['accent']}' stroke-width='2.5' "
+            f"data-tip='{tip}'/>"
         )
+    # end value callout
+    last_x, last_y = pts[-1]
+    parts.append(
+        f"<text x='{last_x:.1f}' y='{last_y - 12:.1f}' text-anchor='middle' "
+        f"fill='{palette['ink']}' font-size='11' font-weight='600' "
+        f"font-family='Space Grotesk, Segoe UI, sans-serif'>"
+        f"{y[-1]:.3g}</text>"
+    )
     parts.append("</svg>")
-    return "\n".join(parts)
+    return "\n".join(p for p in parts if not p.startswith("<!--uid:"))
 
 
 def _svg_bar(
@@ -405,16 +452,11 @@ def _svg_bar(
     width: int,
     height: int,
     pad_l: int,
-    pad_r: int,
     pad_t: int,
-    pad_b: int,
     plot_w: int,
     plot_h: int,
-    accent: str,
-    ink: str,
-    grid: str,
+    palette: dict[str, str],
 ) -> str:
-    del pad_r, pad_b
     labels = [str(v) for v in spec.data.get("labels", [])]
     y = _as_floats(spec.data.get("y"))
     if not labels or len(labels) != len(y):
@@ -423,39 +465,45 @@ def _svg_bar(
     max_y = max(y) if y else 1.0
     if max_y == 0:
         max_y = 1.0
+    max_y *= 1.12
     n = len(y)
-    gap = plot_w * 0.08 / max(n, 1)
+    gap = plot_w * 0.1 / max(n, 1)
     bar_w = (plot_w - gap * (n + 1)) / max(n, 1)
-    parts = [
-        _svg_frame(
-            width,
-            height,
-            pad_l,
-            pad_t,
-            plot_w,
-            plot_h,
-            ink,
-            grid,
-            str(spec.data.get("xlabel", "")),
-            str(spec.data.get("ylabel", "")),
-        )
-    ]
+    parts = _svg_shell(
+        width,
+        height,
+        pad_l,
+        pad_t,
+        plot_w,
+        plot_h,
+        palette,
+        str(spec.data.get("xlabel", "")),
+        str(spec.data.get("ylabel", "")),
+    )
+    uid = _uid_from_parts(parts)
     for i, (label, value) in enumerate(zip(labels, y, strict=True)):
         bh = (value / max_y) * plot_h
         x = pad_l + gap + i * (bar_w + gap)
         y0 = pad_t + plot_h - bh
+        tip = html.escape(f"{label}: {value:.4g}")
         parts.append(
-            f"<rect x='{x:.1f}' y='{y0:.1f}' width='{bar_w:.1f}' height='{bh:.1f}' "
-            f"fill='{accent}' rx='4'/>"
+            f"<rect class='hit' x='{x:.1f}' y='{y0:.1f}' width='{bar_w:.1f}' "
+            f"height='{bh:.1f}' fill='url(#bar-{uid})' rx='10' data-tip='{tip}'/>"
         )
         parts.append(
-            f"<text x='{x + bar_w / 2:.1f}' y='{pad_t + plot_h + 18}' "
-            f"text-anchor='middle' fill='{ink}' font-size='12' "
+            f"<text x='{x + bar_w / 2:.1f}' y='{y0 - 8:.1f}' text-anchor='middle' "
+            f"fill='{palette['ink']}' font-size='11' font-weight='600' "
+            f"font-family='Space Grotesk, Segoe UI, sans-serif'>"
+            f"{value:.3g}</text>"
+        )
+        parts.append(
+            f"<text x='{x + bar_w / 2:.1f}' y='{pad_t + plot_h + 20}' "
+            f"text-anchor='middle' fill='{palette['muted']}' font-size='12' "
             f"font-family='Space Grotesk, Segoe UI, sans-serif'>"
             f"{html.escape(label)}</text>"
         )
     parts.append("</svg>")
-    return "\n".join(parts)
+    return "\n".join(p for p in parts if not p.startswith("<!--uid:"))
 
 
 def _svg_scatter(
@@ -463,16 +511,11 @@ def _svg_scatter(
     width: int,
     height: int,
     pad_l: int,
-    pad_r: int,
     pad_t: int,
-    pad_b: int,
     plot_w: int,
     plot_h: int,
-    accent: str,
-    ink: str,
-    grid: str,
+    palette: dict[str, str],
 ) -> str:
-    del pad_r, pad_b
     x = _as_floats(spec.data.get("x"))
     y = _as_floats(spec.data.get("y"))
     if len(x) != len(y) or not x:
@@ -484,6 +527,12 @@ def _svg_scatter(
         max_x = min_x + 1.0
     if max_y == min_y:
         max_y = min_y + 1.0
+    pad_frac = 0.08
+    dx, dy = max_x - min_x, max_y - min_y
+    min_x -= pad_frac * dx
+    max_x += pad_frac * dx
+    min_y -= pad_frac * dy
+    max_y += pad_frac * dy
 
     def px(xv: float) -> float:
         return pad_l + (xv - min_x) / (max_x - min_x) * plot_w
@@ -491,27 +540,31 @@ def _svg_scatter(
     def py(yv: float) -> float:
         return pad_t + (1.0 - (yv - min_y) / (max_y - min_y)) * plot_h
 
-    parts = [
-        _svg_frame(
-            width,
-            height,
-            pad_l,
-            pad_t,
-            plot_w,
-            plot_h,
-            ink,
-            grid,
-            str(spec.data.get("xlabel", "")),
-            str(spec.data.get("ylabel", "")),
-        )
-    ]
-    for a, b in zip(x, y, strict=True):
+    parts = _svg_shell(
+        width,
+        height,
+        pad_l,
+        pad_t,
+        plot_w,
+        plot_h,
+        palette,
+        str(spec.data.get("xlabel", "")),
+        str(spec.data.get("ylabel", "")),
+    )
+    for xv, yv in zip(x, y, strict=True):
+        a, b = px(xv), py(yv)
+        tip = html.escape(f"x={xv:.4g}, y={yv:.4g}")
         parts.append(
-            f"<circle cx='{px(a):.1f}' cy='{py(b):.1f}' r='5' "
-            f"fill='{accent}' fill-opacity='0.85'/>"
+            f"<circle cx='{a:.1f}' cy='{b:.1f}' r='7' "
+            f"fill='{palette['accent']}' fill-opacity='0.22'/>"
+        )
+        parts.append(
+            f"<circle class='hit' cx='{a:.1f}' cy='{b:.1f}' r='4.5' "
+            f"fill='{palette['accent']}' stroke='#fff' stroke-width='2' "
+            f"data-tip='{tip}'/>"
         )
     parts.append("</svg>")
-    return "\n".join(parts)
+    return "\n".join(p for p in parts if not p.startswith("<!--uid:"))
 
 
 def _wrap(title: str, body: str) -> str:
@@ -527,17 +580,17 @@ def _wrap(title: str, body: str) -> str:
         rel="stylesheet"/>
   <style>
     :root {{
-      --bg: #eef2f6;
-      --bg-accent: #e2e8f0;
-      --ink: #0f172a;
-      --muted: #64748b;
+      --bg: #e8eef5;
+      --ink: #0b1220;
+      --muted: #5b6b7c;
       --card: #ffffff;
-      --line: #dbe3ee;
-      --teal: #0d9488;
-      --warn: #d97706;
-      --err: #dc2626;
-      --info: #0d9488;
-      --shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+      --line: #d5deea;
+      --teal: #0f766e;
+      --teal-deep: #115e59;
+      --warn: #c2410c;
+      --err: #b91c1c;
+      --info: #0f766e;
+      --shadow: 0 10px 28px rgba(11, 18, 32, 0.07);
     }}
     * {{ box-sizing: border-box; }}
     body {{
@@ -545,83 +598,127 @@ def _wrap(title: str, body: str) -> str:
       font-family: "Space Grotesk", "Segoe UI", sans-serif;
       color: var(--ink);
       background:
-        radial-gradient(1000px 480px at 0% 0%, #99f6e440, transparent 55%),
-        radial-gradient(900px 420px at 100% 10%, #93c5fd33, transparent 50%),
+        radial-gradient(900px 420px at 0% -10%, #5eead455, transparent 55%),
+        radial-gradient(800px 380px at 100% 0%, #7dd3fc44, transparent 50%),
         var(--bg);
-      line-height: 1.5;
+      line-height: 1.45;
     }}
-    main {{
-      width: min(1080px, calc(100% - 2rem));
-      margin: 2rem auto 3rem;
+    .toolbar {{
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.65rem 1rem;
+      background: rgba(255, 255, 255, 0.92);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(8px);
+    }}
+    .toolbar-brand {{
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--teal-deep);
+    }}
+    .btn {{
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 0.55rem 1rem;
+      background: var(--teal);
+      color: #fff;
+      font: inherit;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(15, 118, 110, 0.25);
+    }}
+    .btn:hover {{ background: var(--teal-deep); }}
+    .report {{
+      width: min(980px, calc(100% - 1.5rem));
+      margin: 1rem auto 2rem;
     }}
     .hero {{
-      padding: 1.75rem 1.75rem 1.5rem;
-      border-radius: 1.25rem;
-      background: linear-gradient(145deg, var(--card), var(--bg-accent));
+      padding: 1.15rem 1.25rem 1rem;
+      border-radius: 1rem;
+      background: linear-gradient(145deg, #fff, #eef7f5);
+      border: 1px solid var(--line);
       box-shadow: var(--shadow);
-      margin-bottom: 1.25rem;
+      margin-bottom: 0.75rem;
     }}
     .brand {{
-      margin: 0 0 0.35rem;
+      margin: 0 0 0.2rem;
       letter-spacing: 0.14em;
       text-transform: uppercase;
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       font-weight: 600;
       color: var(--teal);
     }}
     h1 {{
       margin: 0;
-      font-family: "Space Grotesk", "Segoe UI", sans-serif;
-      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-size: clamp(1.45rem, 3vw, 2rem);
       font-weight: 700;
       line-height: 1.15;
       letter-spacing: -0.03em;
     }}
     .lede {{
-      margin: 0.75rem 0 0;
-      max-width: 42rem;
+      margin: 0.45rem 0 0;
+      max-width: 46rem;
       color: var(--muted);
-      font-size: 1.05rem;
+      font-size: 0.98rem;
     }}
-    section {{
+    .band {{
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }}
+    .band-solo {{
+      grid-template-columns: 1fr;
+    }}
+    .panel {{
       background: var(--card);
       border: 1px solid var(--line);
-      border-radius: 1rem;
-      padding: 1.25rem 1.35rem;
-      margin-bottom: 1rem;
+      border-radius: 0.9rem;
+      padding: 0.85rem 1rem;
       box-shadow: var(--shadow);
+      margin-bottom: 0.75rem;
     }}
+    .band > .panel {{ margin-bottom: 0; }}
     h2 {{
-      margin: 0 0 0.85rem;
-      font-size: 1.15rem;
-      letter-spacing: -0.02em;
+      margin: 0 0 0.55rem;
+      font-size: 0.95rem;
+      letter-spacing: -0.01em;
     }}
-    h3 {{
-      margin: 0 0 0.5rem;
-      font-size: 1rem;
+    h3, .table-title {{
+      margin: 0.35rem 0 0.35rem;
+      font-size: 0.88rem;
     }}
     .metrics {{
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 0.75rem;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 0.45rem;
     }}
     .metric {{
-      padding: 0.9rem 1rem;
-      border-radius: 0.85rem;
-      background: var(--bg);
+      padding: 0.55rem 0.65rem;
+      border-radius: 0.65rem;
+      background: #f3f7fb;
       border: 1px solid var(--line);
     }}
     .metric-key {{
       display: block;
       color: var(--muted);
-      font-size: 0.8rem;
+      font-size: 0.68rem;
       text-transform: uppercase;
       letter-spacing: 0.06em;
     }}
     .metric-val {{
       display: block;
-      margin-top: 0.25rem;
-      font-size: 1.35rem;
+      margin-top: 0.15rem;
+      font-size: 1.15rem;
       font-weight: 700;
       letter-spacing: -0.02em;
     }}
@@ -630,24 +727,25 @@ def _wrap(title: str, body: str) -> str:
       margin: 0;
       padding: 0;
       display: grid;
-      gap: 0.55rem;
+      gap: 0.4rem;
     }}
     .diag {{
       display: grid;
       grid-template-columns: auto auto 1fr;
-      gap: 0.65rem;
+      gap: 0.45rem;
       align-items: center;
-      padding: 0.7rem 0.85rem;
-      border-radius: 0.75rem;
-      background: var(--bg);
+      padding: 0.45rem 0.55rem;
+      border-radius: 0.55rem;
+      background: #f3f7fb;
       border: 1px solid var(--line);
+      font-size: 0.9rem;
     }}
     .badge {{
-      font-size: 0.72rem;
-      font-weight: 600;
+      font-size: 0.65rem;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      padding: 0.2rem 0.45rem;
+      padding: 0.15rem 0.4rem;
       border-radius: 999px;
       color: white;
       background: var(--info);
@@ -657,41 +755,131 @@ def _wrap(title: str, body: str) -> str:
     table {{
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.95rem;
+      font-size: 0.86rem;
     }}
     th, td {{
       text-align: left;
-      padding: 0.55rem 0.45rem;
+      padding: 0.35rem 0.3rem;
       border-bottom: 1px solid var(--line);
     }}
-    th {{ color: var(--muted); font-weight: 600; font-size: 0.8rem; }}
+    th {{ color: var(--muted); font-weight: 600; font-size: 0.72rem; }}
     .figures {{
       display: grid;
-      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 0.85rem;
+    }}
+    .figures-solo {{
+      grid-template-columns: 1fr;
     }}
     .chart {{
       margin: 0;
-      padding: 0.5rem;
-      border-radius: 0.85rem;
-      background: var(--bg);
-      border: 1px solid var(--line);
+      padding: 0.15rem;
+      border-radius: 1rem;
+      background: transparent;
+      border: 0;
+      overflow: hidden;
     }}
     figcaption {{
       font-weight: 600;
-      margin: 0 0 0.5rem 0.25rem;
+      font-size: 0.92rem;
+      letter-spacing: -0.01em;
+      margin: 0 0 0.45rem 0.35rem;
     }}
-    .chart svg {{ width: 100%; height: auto; display: block; }}
-    .muted {{ color: var(--muted); font-size: 0.9rem; }}
+    .chart svg, .chart-svg {{
+      width: 100%;
+      height: auto;
+      display: block;
+      filter: drop-shadow(0 10px 22px rgba(15, 23, 42, 0.08));
+    }}
+    .hit {{
+      cursor: pointer;
+      transition: opacity 0.12s ease, filter 0.12s ease;
+    }}
+    .hit:hover {{
+      opacity: 0.92;
+      filter: brightness(1.08);
+    }}
+    .tip-box {{
+      position: fixed;
+      z-index: 40;
+      display: none;
+      pointer-events: none;
+      max-width: 16rem;
+      padding: 0.4rem 0.65rem;
+      border-radius: 0.45rem;
+      background: #0b1220;
+      color: #f8fafc;
+      font-size: 0.78rem;
+      font-weight: 500;
+      line-height: 1.35;
+      box-shadow: 0 10px 24px rgba(11, 18, 32, 0.28);
+      transform: translate(-50%, calc(-100% - 10px));
+      white-space: nowrap;
+    }}
+    .tip-box.is-on {{ display: block; }}
+    .foot {{
+      margin-top: 0.35rem;
+      font-size: 0.8rem;
+      text-align: center;
+    }}
+    .muted {{ color: var(--muted); }}
     code {{
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 0.88em;
+      font-size: 0.84em;
+    }}
+    @media (max-width: 820px) {{
+      .band {{ grid-template-columns: 1fr; }}
+    }}
+    @media print {{
+      @page {{ size: A4; margin: 10mm; }}
+      body {{
+        background: #fff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }}
+      .no-print {{ display: none !important; }}
+      .tip-box {{ display: none !important; }}
+      .report {{ width: 100%; margin: 0; }}
+      .panel, .hero, .chart, .metric, .diag {{
+        box-shadow: none !important;
+        break-inside: avoid;
+      }}
+      .band {{ gap: 0.5rem; }}
+      .figures {{ grid-template-columns: 1fr 1fr; }}
     }}
   </style>
 </head>
 <body>
-  <main>
 {body}
-  </main>
+<div id="tip" class="tip-box no-print" role="tooltip"></div>
+<script>
+(function () {{
+  var tip = document.getElementById("tip");
+  if (!tip) return;
+  function show(el, evt) {{
+    var text = el.getAttribute("data-tip");
+    if (!text) return;
+    tip.textContent = text;
+    tip.classList.add("is-on");
+    tip.style.left = evt.clientX + "px";
+    tip.style.top = evt.clientY + "px";
+  }}
+  function hide() {{ tip.classList.remove("is-on"); }}
+  document.addEventListener("pointerover", function (evt) {{
+    var el = evt.target.closest && evt.target.closest("[data-tip]");
+    if (el) show(el, evt);
+  }});
+  document.addEventListener("pointermove", function (evt) {{
+    if (!tip.classList.contains("is-on")) return;
+    tip.style.left = evt.clientX + "px";
+    tip.style.top = evt.clientY + "px";
+  }});
+  document.addEventListener("pointerout", function (evt) {{
+    var el = evt.target.closest && evt.target.closest("[data-tip]");
+    if (el) hide();
+  }});
+}})();
+</script>
 </body>
 </html>
 """
