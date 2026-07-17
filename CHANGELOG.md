@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 2 observability MVP: artifact types (`Trace`, `Diagnostic`, `Report`,
+  `Observation`, `FigureSpec`, `TableSpec`), `export_json` /
+  `export_markdown_summary` / `export_html` (browser dashboard with inline SVG),
+  `ObservabilityMixin` on `BaseEstimator`, optional matplotlib `render_figure`,
+  dummy examples/tests, and the Observability docs page.
 - Phase 1 Core API: `BaseEstimator`, parameter mixins
   (`ParamMixin`, transformer/classifier/regressor/cluster/serializable),
   validation helpers (`check_array`, `check_X_y`, `check_random_state`,

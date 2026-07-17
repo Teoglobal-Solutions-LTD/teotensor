@@ -6,3 +6,7 @@ model code.
 """
 
 from __future__ import annotations
+
+from teotensor.viz.matplotlib_backend import render_figure
+
+__all__ = ["render_figure"]

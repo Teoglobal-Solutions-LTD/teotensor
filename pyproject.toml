@@ -77,14 +77,11 @@ select = [
     "ANN",  # flake8-annotations
 ]
 ignore = [
-    "ANN101",  # self annotations (removed in modern ruff; keep for old hooks)
-    "ANN102",  # cls annotations (removed in modern ruff; keep for old hooks)
     "ANN401",  # allow explicit typing.Any where justified
     "D105",    # missing docstring in magic method
     "N802",    # allow sklearn-style names (check_X_y)
     "N803",    # allow sklearn-style argument names (X, y)
     "N806",    # allow uppercase matrix names (X_checked, ...)
-    "UP038",   # isinstance(X | Y) is noisier with NumPy alias types
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -114,6 +111,10 @@ files = ["teotensor"]
 [[tool.mypy.overrides]]
 module = ["tests.*", "examples.*", "benchmarks.*"]
 disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = ["matplotlib", "matplotlib.*"]
+ignore_missing_imports = true
 
 # --------------------------------------------------------------------------- #
 # pytest + coverage

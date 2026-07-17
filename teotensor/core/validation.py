@@ -169,9 +169,9 @@ def check_random_state(seed: RandomStateLike = None) -> RandomState | Generator:
     """
     if seed is None:
         return RandomState()
-    if isinstance(seed, (RandomState, Generator)):
+    if isinstance(seed, RandomState | Generator):
         return seed
-    if isinstance(seed, (int, np.integer)):
+    if isinstance(seed, int | np.integer):
         return RandomState(int(seed))
     msg = (
         "seed must be None, int, numpy.random.RandomState, or "

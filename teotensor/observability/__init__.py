@@ -6,3 +6,7 @@ the framework is inspectable in the same way.
 """
 
 from __future__ import annotations
+
+from teotensor.observability.mixin import ObservabilityMixin
+
+__all__ = ["ObservabilityMixin"]
