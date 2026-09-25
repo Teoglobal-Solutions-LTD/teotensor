@@ -5,3 +5,7 @@ inspectable through the shared observability contract.
 """
 
 from __future__ import annotations
+
+from teotensor.classical.decomposition import PCA
+
+__all__ = ["PCA"]

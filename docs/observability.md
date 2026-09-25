@@ -36,8 +36,9 @@ Estimator.fit(...)
 
 - stylish and readable on a single page;
 - clear for metrics, diagnostics, tables, and figures;
-- interactive where it helps (hover tooltips on chart points/bars today;
-  animations later for iterative algorithms such as K-Means centroid motion);
+- interactive where it helps (hover tooltips on chart marks; `?` help balloons
+  on metrics/sections for beginners; animations later for iterative algorithms
+  such as K-Means centroid motion);
 - printable via **Print / Save as PDF**.
 
 Matplotlib remains available as `teotensor.viz.render_figure` for notebooks and
@@ -174,8 +175,8 @@ pipelines). Prefer `export_html` for day-to-day inspection.
 
 ## What this phase does *not* include
 
-- Classical algorithms (PCA / KMeans / …) — next phases, but they must obey
-  this contract.
+- Classical algorithms — PCA is shipped (`teotensor.classical.PCA`); KMeans /
+  DBSCAN come next, still under this contract.
 - A hosted Studio / multi-user web app — later optional layer.
 - Plotting inside estimators — explicitly forbidden.
 

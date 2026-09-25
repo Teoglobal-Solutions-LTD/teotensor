@@ -20,8 +20,8 @@ TeoTensor unifies three ideas into one coherent framework:
 ## Project status
 
 Pre-alpha. Start with the [Core API](core-api.md) and
-[Observability](observability.md) — the shared estimator and inspection
-contracts used by every future model.
+[Observability](observability.md), then the first classical model —
+[PCA](pca.md).
 
 ## Getting started (development)
 

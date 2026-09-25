@@ -95,7 +95,10 @@ def test_export_html_dashboard_contains_svg_and_metrics(tmp_path: Path) -> None:
     html_doc = export_html(observation, path)
     assert path.is_file()
     assert "TeoTensor" in html_doc
-    assert "final_loss" in html_doc
+    assert "Final Loss" in html_doc or "final_loss" in html_doc
+    assert "0.42" in html_doc
+    assert "help-tip" in html_doc
+    assert "panel-lede" in html_doc
     assert "<svg" in html_doc
     assert "polyline" in html_doc or "polygon" in html_doc
     assert "Print / Save as PDF" in html_doc
@@ -105,3 +108,24 @@ def test_export_html_dashboard_contains_svg_and_metrics(tmp_path: Path) -> None:
     assert "data-tip=" in html_doc
     assert 'class="tip-box' in html_doc or "class='tip-box" in html_doc
     assert "class='hit'" in html_doc or 'class="hit"' in html_doc
+
+
+def test_export_html_compacts_long_floats_and_shows_help() -> None:
+    observation = Observation(
+        report=Report(
+            title="PCA-ish",
+            metrics={
+                "reconstruction_mse": 0.10530859188189481,
+                "variance_retained": 0.9570865950207439,
+            },
+        )
+    )
+    html_doc = export_html(observation)
+    assert "metric-val" in html_doc
+    assert ">0.1053<" in html_doc
+    assert "95.7%" in html_doc
+    assert "Reconstruction MSE" in html_doc
+    assert "Mean squared error" in html_doc
+    assert "data-key='reconstruction_mse'" in html_doc
+    # Full precision kept for hover / title, not as the visible cell text.
+    assert "Exact value: 0.10530859188189481" in html_doc

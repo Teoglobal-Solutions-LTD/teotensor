@@ -49,3 +49,4 @@ nav:
   - Home: index.md
   - Core API: core-api.md
   - Observability: observability.md
+  - PCA: pca.md
