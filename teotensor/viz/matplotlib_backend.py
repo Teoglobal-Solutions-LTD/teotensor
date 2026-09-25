@@ -41,15 +41,28 @@ def render_figure(spec: FigureSpec) -> Any:
     data = spec.data
 
     if spec.kind == "line":
-        x = data.get("x")
-        y = data.get("y")
-        if y is None:
-            msg = "FigureSpec(kind='line') requires data['y']."
-            raise ValueError(msg)
-        if x is None:
-            ax.plot(y)
+        series = data.get("series")
+        if isinstance(series, list) and series:
+            for item in series:
+                if not isinstance(item, dict) or "y" not in item:
+                    msg = "Each line series needs a 'y' list."
+                    raise ValueError(msg)
+                series_x = item.get("x")
+                if series_x is None:
+                    ax.plot(item["y"], label=str(item.get("name", "")))
+                else:
+                    ax.plot(series_x, item["y"], label=str(item.get("name", "")))
+            ax.legend()
         else:
-            ax.plot(x, y)
+            x = data.get("x")
+            y = data.get("y")
+            if y is None:
+                msg = "FigureSpec(kind='line') requires data['y']."
+                raise ValueError(msg)
+            if x is None:
+                ax.plot(y)
+            else:
+                ax.plot(x, y)
     elif spec.kind == "bar":
         labels = data.get("labels")
         y = data.get("y")
@@ -64,6 +77,19 @@ def render_figure(spec: FigureSpec) -> Any:
             msg = "FigureSpec(kind='scatter') requires data['x'] and data['y']."
             raise ValueError(msg)
         ax.scatter(x, y)
+    elif spec.kind == "heatmap":
+        matrix = data.get("matrix")
+        if matrix is None:
+            msg = "FigureSpec(kind='heatmap') requires data['matrix']."
+            raise ValueError(msg)
+        image = ax.imshow(matrix, aspect="auto")
+        fig.colorbar(image, ax=ax)
+        xlabels = data.get("xlabels")
+        ylabels = data.get("ylabels")
+        if xlabels is not None:
+            ax.set_xticks(range(len(xlabels)), labels=[str(item) for item in xlabels])
+        if ylabels is not None:
+            ax.set_yticks(range(len(ylabels)), labels=[str(item) for item in ylabels])
     else:
         msg = f"Unsupported FigureSpec.kind: {spec.kind!r}."
         raise ValueError(msg)

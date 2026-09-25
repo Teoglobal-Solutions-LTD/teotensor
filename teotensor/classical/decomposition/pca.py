@@ -13,8 +13,14 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 from teotensor.artifacts.types import Diagnostic, FigureSpec, Report, TableSpec
+from teotensor.artifacts.weights import (
+    decode_params,
+    encode_params,
+    read_ttw,
+    write_ttw,
+)
 from teotensor.core.base import BaseEstimator
-from teotensor.core.mixins import TransformerMixin
+from teotensor.core.mixins import SerializableMixin, TransformerMixin
 from teotensor.core.validation import check_array, check_is_fitted
 
 SvdSolver = Literal["full"]
@@ -76,7 +82,7 @@ def _resolve_n_components(
     raise TypeError(msg)
 
 
-class PCA(TransformerMixin, BaseEstimator):
+class PCA(SerializableMixin, TransformerMixin, BaseEstimator):
     """Principal Component Analysis (linear dimensionality reduction).
 
     Centers ``X``, then computes an economy SVD ``X_c = U S V^T``. Principal
@@ -434,3 +440,78 @@ class PCA(TransformerMixin, BaseEstimator):
                 },
             ),
         ]
+
+    def export_weights(self, path: str) -> str:
+        """Write axes and means to a ``.ttw`` file for later ``load_weights``.
+
+        Parameters
+        ----------
+        path : str
+            Destination path.
+
+        Returns
+        -------
+        str
+            Absolute path written.
+        """
+        check_is_fitted(self, ("mean_", "components_"))
+        written = write_ttw(
+            path,
+            model_module=type(self).__module__,
+            model_name=type(self).__name__,
+            params=encode_params(self.get_params(deep=False)),
+            meta={
+                "n_samples": int(self.n_samples_),
+                "n_features_in": int(self.n_features_in_),
+                "n_components": int(self.n_components_),
+                "noise_variance": float(self.noise_variance_),
+                "reconstruction_error": float(self.reconstruction_error_),
+            },
+            arrays={
+                "components": self.components_,
+                "mean": self.mean_,
+                "explained_variance": self.explained_variance_,
+                "explained_variance_ratio": self.explained_variance_ratio_,
+                "singular_values": self.singular_values_,
+                "full_explained_variance_ratio": self._full_explained_variance_ratio_,
+                "feature_std": self._feature_std_,
+            },
+        )
+        return str(written)
+
+    @classmethod
+    def load_weights(cls, path: str) -> PCA:
+        """Rebuild a fitted PCA from a ``.ttw`` file.
+
+        Parameters
+        ----------
+        path : str
+            File written by :meth:`export_weights`.
+
+        Returns
+        -------
+        PCA
+            Model whose :meth:`transform` matches the saved axes.
+        """
+        manifest, arrays = read_ttw(path)
+        model = cls(**decode_params(manifest["params"]))
+        meta = manifest["meta"]
+        model.components_ = np.asarray(arrays["components"], dtype=np.float64)
+        model.mean_ = np.asarray(arrays["mean"], dtype=np.float64)
+        model.explained_variance_ = np.asarray(
+            arrays["explained_variance"], dtype=np.float64
+        )
+        model.explained_variance_ratio_ = np.asarray(
+            arrays["explained_variance_ratio"], dtype=np.float64
+        )
+        model.singular_values_ = np.asarray(arrays["singular_values"], dtype=np.float64)
+        model._full_explained_variance_ratio_ = np.asarray(
+            arrays["full_explained_variance_ratio"], dtype=np.float64
+        )
+        model._feature_std_ = np.asarray(arrays["feature_std"], dtype=np.float64)
+        model.n_samples_ = int(meta["n_samples"])
+        model.n_features_in_ = int(meta["n_features_in"])
+        model.n_components_ = int(meta["n_components"])
+        model.noise_variance_ = float(meta["noise_variance"])
+        model.reconstruction_error_ = float(meta["reconstruction_error"])
+        return model

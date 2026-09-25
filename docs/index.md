@@ -20,8 +20,9 @@ TeoTensor unifies three ideas into one coherent framework:
 ## Project status
 
 Pre-alpha. Start with the [Core API](core-api.md) and
-[Observability](observability.md), then the first classical model —
-[PCA](pca.md).
+[Observability](observability.md), then [PCA](pca.md) and the
+[multilayer perceptron](mlp.md). Tables, splits, and minibatches are a
+[Dataset](data.md). The local [studio](mlp.md) drives both.
 
 ## Getting started (development)
 

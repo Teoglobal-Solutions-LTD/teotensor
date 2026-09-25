@@ -21,7 +21,8 @@ class ParamMixin:
 
     Parameter names are taken from the estimator ``__init__`` signature.
     Nested estimators are supported with the ``component__param`` convention
-    when ``deep=True``.
+    when ``deep=True``. A list or tuple of estimators uses the same scheme
+    with an index: ``layers__0__units``.
     """
 
     @classmethod
@@ -71,6 +72,13 @@ class ParamMixin:
             if deep and _is_estimator(value):
                 deep_items = value.get_params(deep=True).items()
                 out.update((f"{key}__{k}", val) for k, val in deep_items)
+            elif deep and _is_estimator_sequence(value):
+                for index, item in enumerate(value):
+                    if _is_estimator(item):
+                        deep_items = item.get_params(deep=True).items()
+                        out.update(
+                            (f"{key}__{index}__{k}", val) for k, val in deep_items
+                        )
             out[key] = value
         return out
 
@@ -114,7 +122,10 @@ class ParamMixin:
 
         for key, sub_params in nested_params.items():
             nested = getattr(self, key)
-            nested.set_params(**sub_params)
+            if _is_estimator_sequence(nested):
+                _set_sequence_params(nested, sub_params)
+            else:
+                nested.set_params(**sub_params)
         return self
 
 
@@ -309,9 +320,69 @@ class SerializableMixin:
 
 
 def _is_estimator(value: Any) -> bool:
-    """Return True if ``value`` exposes sklearn-style parameter methods."""
+    """Return True if ``value`` exposes ``get_params`` and ``set_params``."""
     if value is None or isinstance(value, type):
         return False
     get_params = getattr(value, "get_params", None)
     set_params = getattr(value, "set_params", None)
     return callable(get_params) and callable(set_params)
+
+
+def _is_estimator_sequence(value: Any) -> bool:
+    """Return True if ``value`` is a list or tuple that holds an estimator."""
+    if not isinstance(value, list | tuple) or len(value) == 0:
+        return False
+    return any(_is_estimator(item) for item in value)
+
+
+def _set_sequence_params(
+    seq: list[Any] | tuple[Any, ...], sub_params: dict[str, Any]
+) -> None:
+    """Route ``layers__0__units`` style keys into estimators stored in ``seq``."""
+    grouped: dict[int, dict[str, Any]] = {}
+    for sub_key, value in sub_params.items():
+        index_text, delim, rest = sub_key.partition("__")
+        if not index_text.isdigit():
+            msg = f"Sequence parameter index must be an integer; got {sub_key!r}."
+            raise ValueError(msg)
+        index = int(index_text)
+        if index < 0 or index >= len(seq):
+            msg = f"Sequence parameter index {index} is out of range."
+            raise ValueError(msg)
+        if not delim:
+            msg = f"Sequence parameter {sub_key!r} must name a field after the index."
+            raise ValueError(msg)
+        grouped.setdefault(index, {})[rest] = value
+    for index, params in grouped.items():
+        item = seq[index]
+        if not _is_estimator(item):
+            msg = f"Item {index} does not support set_params."
+            raise TypeError(msg)
+        item.set_params(**params)
+
+
+def clone(estimator: Any) -> Any:
+    """Return a new estimator with the same hyperparameters and no fitted state.
+
+    Lists and tuples are copied element by element. Nested estimators are
+    cloned. Plain values (numbers, strings, arrays) are passed through.
+
+    Parameters
+    ----------
+    estimator : estimator or sequence
+        Object that implements ``get_params``, or a sequence of such objects.
+
+    Returns
+    -------
+    object
+        A new instance constructed from ``get_params(deep=False)``.
+    """
+    if isinstance(estimator, list | tuple):
+        copied = [clone(item) if _is_estimator(item) else item for item in estimator]
+        return type(estimator)(copied)
+    if not _is_estimator(estimator):
+        return estimator
+    params = {
+        key: clone(value) for key, value in estimator.get_params(deep=False).items()
+    }
+    return type(estimator)(**params)

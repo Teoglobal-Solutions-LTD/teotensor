@@ -16,6 +16,7 @@ from teotensor.core.mixins import (
     RegressorMixin,
     SerializableMixin,
     TransformerMixin,
+    clone,
 )
 from teotensor.core.validation import (
     check_array,
@@ -37,4 +38,5 @@ __all__ = [
     "check_array",
     "check_is_fitted",
     "check_random_state",
+    "clone",
 ]

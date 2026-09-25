@@ -12,7 +12,7 @@ from typing import Any, Literal
 from teotensor.artifacts.serialize import to_jsonable
 
 Severity = Literal["info", "warning", "error"]
-FigureKind = Literal["line", "bar", "scatter"]
+FigureKind = Literal["line", "bar", "scatter", "heatmap"]
 
 
 @dataclass(frozen=True)
@@ -109,13 +109,15 @@ class FigureSpec:
 
     Parameters
     ----------
-    kind : {"line", "bar", "scatter"}
+    kind : {"line", "bar", "scatter", "heatmap"}
         Renderer-supported plot kind.
     title : str
         Figure title.
     data : dict
         Plot payload. Common keys: ``x``, ``y``, ``xlabel``, ``ylabel``,
-        ``labels`` (for bar charts).
+        ``labels`` (for bar charts). A line may instead carry ``series``, a
+        list of ``{"name", "x", "y"}`` dicts. A heatmap carries ``matrix``,
+        ``xlabels``, and ``ylabels``.
     options : dict, optional
         Renderer hints (for example ``{"figsize": [6, 4]}``).
     """

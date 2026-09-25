@@ -50,3 +50,5 @@ nav:
   - Core API: core-api.md
   - Observability: observability.md
   - PCA: pca.md
+  - MLP: mlp.md
+  - Data: data.md
