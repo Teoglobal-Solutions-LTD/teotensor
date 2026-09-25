@@ -32,6 +32,7 @@ layer.
 from teotensor.core import BaseEstimator, TransformerMixin, check_array, check_is_fitted
 import numpy as np
 
+
 class MeanCenter(BaseEstimator, TransformerMixin):
     def __init__(self, with_mean: bool = True) -> None:
         self.with_mean = with_mean

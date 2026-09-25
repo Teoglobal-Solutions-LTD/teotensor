@@ -124,9 +124,7 @@ def build_playback(
         error.backward()
         for dest in range(len(snapshots) - 1, 0, -1):
             grad = snapshots[dest].grad
-            values = (
-                np.zeros(layer_sizes[dest]) if grad is None else grad[0]
-            )
+            values = np.zeros(layer_sizes[dest]) if grad is None else grad[0]
             frames.append(
                 _neuron_frame(
                     "backward",
@@ -158,9 +156,7 @@ def build_playback(
             )
             order += 1
         input_grad = snapshots[0].grad
-        input_values = (
-            np.zeros(layer_sizes[0]) if input_grad is None else input_grad[0]
-        )
+        input_values = np.zeros(layer_sizes[0]) if input_grad is None else input_grad[0]
         frames.append(
             _neuron_frame(
                 "backward",

@@ -91,6 +91,7 @@ backward frames in amber and crimson.
 
 ```python
 from teotensor.studio import open_studio
+
 open_studio()  # stays running until Ctrl+C
 ```
 
