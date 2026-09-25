@@ -6,6 +6,7 @@ import gzip
 import io
 import struct
 import zipfile
+from pathlib import Path
 
 import numpy as np
 from teotensor.data import (
@@ -60,6 +61,21 @@ def test_standardize_fits_only_the_given_rows() -> None:
     transformed = Standardize().fit(table, table.train_idx).transform(table)
     assert abs(float(transformed.features[table.train_idx].mean())) < 1e-8
     assert abs(float(transformed.features[2, 0]) - 99.0) < 1e-6
+
+
+def test_read_csv_reads_a_file_and_a_long_paste(tmp_path: Path) -> None:
+    path = tmp_path / "rows.csv"
+    path.write_text("a,b\n1,2\n3,4\n", encoding="utf-8")
+    loaded = read_csv(path)
+    assert loaded.features.shape == (2, 2)
+    loaded = read_csv(str(path))
+    assert list(loaded.features[0]) == [1.0, 2.0]
+    lines = ["a,b,y"]
+    for index in range(800):
+        bit = index % 2
+        lines.append(f"{bit},{1 - bit},{bit}")
+    pasted = read_csv("\n".join(lines) + "\n", target="y")
+    assert pasted.features.shape == (800, 2)
 
 
 def test_read_csv_keeps_a_text_target() -> None:

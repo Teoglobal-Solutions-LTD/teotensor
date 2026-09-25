@@ -27,8 +27,7 @@ def read_csv(source: str | Path, *, target: str | None = None) -> Dataset:
         Column kept as ``targets``. ``None`` or ``""`` leaves every column
         in ``features``.
     """
-    path = Path(source)
-    text = path.read_text(encoding="utf-8") if path.is_file() else str(source)
+    text = _text(source)
     rows = [
         row
         for row in csv.reader(io.StringIO(text))
@@ -66,6 +65,28 @@ def read_csv(source: str | Path, *, target: str | None = None) -> Dataset:
         feature_names=names,
         target_name=target_name,
     )
+
+
+def _text(source: str | Path) -> str:
+    """Return CSV characters, reading ``source`` when it names a file.
+
+    Pasted CSV is a string as well. A newline means it is text: on Linux
+    ``Path.is_file`` re-raises ``ENAMETOOLONG`` once the string is longer
+    than a file name, instead of reporting that no such file exists.
+    """
+    if isinstance(source, Path):
+        if source.is_file():
+            return source.read_text(encoding="utf-8")
+        return str(source)
+    if "\n" in source or "\r" in source:
+        return source
+    path = Path(source)
+    try:
+        if path.is_file():
+            return path.read_text(encoding="utf-8")
+    except OSError:
+        return source
+    return source
 
 
 def _as_float(values: list[str], name: str) -> NDArray[np.float64]:
