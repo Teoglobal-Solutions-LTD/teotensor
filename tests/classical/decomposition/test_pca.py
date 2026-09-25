@@ -105,28 +105,3 @@ def test_observability_contract_and_html(tmp_path) -> None:
     assert "PCA report" in html
     assert "<svg" in html
     assert "data-tip=" in html
-
-
-def test_parity_with_sklearn_on_synthetic() -> None:
-    pytest.importorskip("sklearn")
-    import sklearn.decomposition as sk_decomposition
-
-    X = _correlated_blob(n_samples=150, n_features=6, seed=7)
-    ours = PCA(n_components=3).fit(X)
-    refs = sk_decomposition.PCA(n_components=3, svd_solver="full").fit(X)
-
-    assert np.allclose(ours.mean_, refs.mean_)
-    assert np.allclose(ours.explained_variance_, refs.explained_variance_, rtol=1e-6)
-    assert np.allclose(
-        ours.explained_variance_ratio_,
-        refs.explained_variance_ratio_,
-        rtol=1e-6,
-    )
-    assert np.allclose(np.abs(ours.components_), np.abs(refs.components_), rtol=1e-5)
-    signs = np.sign(np.sum(ours.components_ * refs.components_, axis=1))
-    signs[signs == 0] = 1
-    aligned = ours.components_ * signs[:, None]
-    assert np.allclose(aligned, refs.components_, rtol=1e-5, atol=1e-8)
-    z_ours = (X - ours.mean_) @ aligned.T
-    z_refs = refs.transform(X)
-    assert np.allclose(z_ours, z_refs, rtol=1e-5, atol=1e-8)

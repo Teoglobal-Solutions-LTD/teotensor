@@ -71,11 +71,11 @@ The model API stays stable when you add a new renderer.
 ## Contract
 
 ```python
-model.report()      # -> Report              (must override)
-model.diagnose()    # -> list[Diagnostic]    (must override)
-model.trace()       # -> list[Trace]         (default: [])
-model.visualize()   # -> list[FigureSpec]    (default: [])
-model.observe()     # -> Observation         (aggregates the above)
+model.report()  # -> Report              (must override)
+model.diagnose()  # -> list[Diagnostic]    (must override)
+model.trace()  # -> list[Trace]         (default: [])
+model.visualize()  # -> list[FigureSpec]    (default: [])
+model.observe()  # -> Observation         (aggregates the above)
 ```
 
 - `report` / `diagnose` are mandatory for concrete models. The default
@@ -102,6 +102,7 @@ scalars/arrays are converted automatically).
 ```python
 from teotensor.core import BaseEstimator, check_is_fitted
 from teotensor.artifacts import Diagnostic, FigureSpec, Report, Trace
+
 
 class LossToy(BaseEstimator):
     def fit(self, X, y=None):

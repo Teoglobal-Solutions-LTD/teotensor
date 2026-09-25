@@ -108,6 +108,11 @@ def test_export_html_dashboard_contains_svg_and_metrics(tmp_path: Path) -> None:
     assert "data-tip=" in html_doc
     assert 'class="tip-box' in html_doc or "class='tip-box" in html_doc
     assert "class='hit'" in html_doc or 'class="hit"' in html_doc
+    dark = export_html(observation, theme="dark")
+    assert "#0c121b" in dark
+    assert "repeat(2, minmax(0, 1fr))" in dark
+    assert "stop-color='#f8fafc'" not in dark
+    assert "stop-color='#161e2b'" in dark
 
 
 def test_export_html_compacts_long_floats_and_shows_help() -> None:

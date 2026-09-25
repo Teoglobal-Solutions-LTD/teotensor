@@ -41,8 +41,19 @@ def test_render_bar_and_scatter() -> None:
     assert scatter.axes[0].get_title() == "Points"
 
 
+def test_render_heatmap() -> None:
+    fig = render_figure(
+        FigureSpec(
+            kind="heatmap",
+            title="Grid",
+            data={"matrix": [[1.0, 0.0], [0.0, 1.0]], "xlabels": ["a", "b"]},
+        )
+    )
+    assert fig.axes[0].get_title() == "Grid"
+
+
 def test_render_rejects_unknown_kind() -> None:
     with pytest.raises(ValueError, match="Unsupported"):
         render_figure(
-            FigureSpec(kind="heatmap", title="Nope", data={})  # type: ignore[arg-type]
+            FigureSpec(kind="pie", title="Nope", data={})  # type: ignore[arg-type]
         )

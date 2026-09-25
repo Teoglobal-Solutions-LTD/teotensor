@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import html
 import webbrowser
+from contextvars import ContextVar
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any
+from typing import Any, Literal
 
 from teotensor.artifacts.types import (
     Diagnostic,
@@ -21,12 +22,15 @@ from teotensor.artifacts.types import (
     Trace,
 )
 
+_REPORT_THEME: ContextVar[str] = ContextVar("teotensor_report_theme", default="light")
+
 
 def export_html(
     obj: Report | Observation,
     filepath: str | Path | None = None,
     *,
     open_browser: bool = False,
+    theme: Literal["light", "dark"] = "light",
 ) -> str:
     """Render a self-contained one-page HTML observation report.
 
@@ -43,6 +47,8 @@ def export_html(
     open_browser : bool, default=False
         If True, write the document (to ``filepath`` or a temp file) and open
         it in the default browser.
+    theme : {"light", "dark"}, default="light"
+        ``dark`` matches the studio. The downloaded page stays light.
 
     Returns
     -------
@@ -54,13 +60,21 @@ def export_html(
     TypeError
         If ``obj`` is neither a Report nor an Observation.
     """
-    if isinstance(obj, Observation):
-        document = _observation_html(obj)
-    elif isinstance(obj, Report):
-        document = _report_page_html(obj, diagnostics=(), traces=())
-    else:
-        msg = f"Expected Report or Observation, got {type(obj).__name__}."
-        raise TypeError(msg)
+    token = _REPORT_THEME.set(theme)
+    try:
+        if isinstance(obj, Observation):
+            document = _observation_html(obj)
+        elif isinstance(obj, Report):
+            document = _report_page_html(obj, diagnostics=(), traces=())
+        else:
+            msg = f"Expected Report or Observation, got {type(obj).__name__}."
+            raise TypeError(msg)
+        if theme == "dark":
+            document = document.replace(
+                "</style>", _DARK_REPORT_CSS + "\n  </style>", 1
+            )
+    finally:
+        _REPORT_THEME.reset(token)
 
     target: Path | None = Path(filepath) if filepath is not None else None
     if open_browser and target is None:
@@ -403,15 +417,28 @@ def _figure_svg(spec: FigureSpec) -> str:
     pad_l, pad_r, pad_t, pad_b = 58, 28, 28, 52
     plot_w = width - pad_l - pad_r
     plot_h = height - pad_t - pad_b
-    palette = {
-        "accent": "#0d9488",
-        "accent2": "#14b8a6",
-        "ink": "#0f172a",
-        "muted": "#64748b",
-        "grid": "#cbd5e1",
-        "plot_bg": "#f8fafc",
-        "card_bg": "#ffffff",
-    }
+    if _REPORT_THEME.get() == "dark":
+        palette = {
+            "accent": "#0d9488",
+            "accent2": "#14b8a6",
+            "ink": "#e7eef6",
+            "muted": "#93a4b8",
+            "grid": "#314158",
+            "plot_bg": "#0c121b",
+            "card_bg": "#161e2b",
+            "heat_low": "12,18,27",
+        }
+    else:
+        palette = {
+            "accent": "#0d9488",
+            "accent2": "#14b8a6",
+            "ink": "#0f172a",
+            "muted": "#64748b",
+            "grid": "#cbd5e1",
+            "plot_bg": "#f8fafc",
+            "card_bg": "#ffffff",
+            "heat_low": "255,255,255",
+        }
 
     try:
         if spec.kind == "line":
@@ -420,6 +447,10 @@ def _figure_svg(spec: FigureSpec) -> str:
             return _svg_bar(spec, width, height, pad_l, pad_t, plot_w, plot_h, palette)
         if spec.kind == "scatter":
             return _svg_scatter(
+                spec, width, height, pad_l, pad_t, plot_w, plot_h, palette
+            )
+        if spec.kind == "heatmap":
+            return _svg_heatmap(
                 spec, width, height, pad_l, pad_t, plot_w, plot_h, palette
             )
     except (TypeError, ValueError, KeyError):
@@ -456,8 +487,8 @@ def _svg_shell(
         f"role='img' class='chart-svg'>",
         "<defs>",
         f"<linearGradient id='bg-{uid}' x1='0' y1='0' x2='1' y2='1'>",
-        "<stop offset='0%' stop-color='#f8fafc'/>",
-        "<stop offset='100%' stop-color='#eef2ff'/>",
+        f"<stop offset='0%' stop-color='{palette['card_bg']}'/>",
+        f"<stop offset='100%' stop-color='{palette['plot_bg']}'/>",
         "</linearGradient>",
         f"<linearGradient id='area-{uid}' x1='0' y1='0' x2='0' y2='1'>",
         f"<stop offset='0%' stop-color='{palette['accent']}' stop-opacity='0.28'/>",
@@ -516,6 +547,11 @@ def _svg_line(
     plot_h: int,
     palette: dict[str, str],
 ) -> str:
+    series = spec.data.get("series")
+    if isinstance(series, list) and series:
+        return _svg_line_series(
+            spec, series, width, height, pad_l, pad_t, plot_w, plot_h, palette
+        )
     y = _as_floats(spec.data.get("y"))
     x_raw = spec.data.get("x")
     x = _as_floats(x_raw) if x_raw is not None else [float(i) for i in range(len(y))]
@@ -569,7 +605,8 @@ def _svg_line(
         tip = html.escape(f"x={xv:.4g}, y={yv:.4g}")
         parts.append(
             f"<circle class='hit' cx='{a:.1f}' cy='{b:.1f}' r='6' "
-            f"fill='#fff' stroke='{palette['accent']}' stroke-width='2.5' "
+            f"fill='{palette['card_bg']}' stroke='{palette['accent']}' "
+            f"stroke-width='2.5' "
             f"data-tip='{tip}'/>"
         )
     # end value callout
@@ -580,6 +617,159 @@ def _svg_line(
         f"font-family='Space Grotesk, Segoe UI, sans-serif'>"
         f"{y[-1]:.3g}</text>"
     )
+    parts.append("</svg>")
+    return "\n".join(p for p in parts if not p.startswith("<!--uid:"))
+
+
+_SERIES_COLORS = ("#0d9488", "#2563eb", "#d97706", "#e11d48")
+
+
+def _svg_line_series(
+    spec: FigureSpec,
+    series: list[Any],
+    width: int,
+    height: int,
+    pad_l: int,
+    pad_t: int,
+    plot_w: int,
+    plot_h: int,
+    palette: dict[str, str],
+) -> str:
+    """Draw several lines on one chart. ``series`` items have name, x, and y."""
+    parsed: list[tuple[str, list[float], list[float]]] = []
+    for item in series:
+        if not isinstance(item, dict) or "y" not in item:
+            msg = "line series items require y"
+            raise ValueError(msg)
+        y_values = _as_floats(item["y"])
+        x_raw = item.get("x")
+        x_values = (
+            _as_floats(x_raw)
+            if x_raw is not None
+            else [float(i) for i in range(len(y_values))]
+        )
+        if len(x_values) != len(y_values) or not y_values:
+            msg = "line series require aligned x/y"
+            raise ValueError(msg)
+        parsed.append((str(item.get("name", "")), x_values, y_values))
+    xs = [value for _, x_values, _ in parsed for value in x_values]
+    ys = [value for _, _, y_values in parsed for value in y_values]
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
+    if max_x == min_x:
+        max_x = min_x + 1.0
+    span_y = max_y - min_y
+    if span_y == 0:
+        max_y = min_y + 1.0
+    else:
+        max_y = max_y + 0.08 * span_y
+        min_y = min_y - 0.04 * span_y
+
+    def px(xv: float) -> float:
+        return pad_l + (xv - min_x) / (max_x - min_x) * plot_w
+
+    def py(yv: float) -> float:
+        return pad_t + (1.0 - (yv - min_y) / (max_y - min_y)) * plot_h
+
+    parts = _svg_shell(
+        width,
+        height,
+        pad_l,
+        pad_t,
+        plot_w,
+        plot_h,
+        palette,
+        str(spec.data.get("xlabel", "")),
+        str(spec.data.get("ylabel", "")),
+    )
+    for index, (name, x_values, y_values) in enumerate(parsed):
+        color = _SERIES_COLORS[index % len(_SERIES_COLORS)]
+        pts = [(px(a), py(b)) for a, b in zip(x_values, y_values, strict=True)]
+        line = " ".join(f"{a:.1f},{b:.1f}" for a, b in pts)
+        parts.append(
+            f"<polyline fill='none' stroke='{color}' stroke-width='2.5' "
+            f"stroke-linecap='round' stroke-linejoin='round' points='{line}'/>"
+        )
+        tip = html.escape(name) if name else color
+        last_x, last_y = pts[-1]
+        parts.append(
+            f"<circle class='hit' cx='{last_x:.1f}' cy='{last_y:.1f}' r='5' "
+            f"fill='{palette['card_bg']}' stroke='{color}' stroke-width='2' "
+            f"data-tip='{tip}'/>"
+        )
+    parts.append("</svg>")
+    return "\n".join(p for p in parts if not p.startswith("<!--uid:"))
+
+
+def _svg_heatmap(
+    spec: FigureSpec,
+    width: int,
+    height: int,
+    pad_l: int,
+    pad_t: int,
+    plot_w: int,
+    plot_h: int,
+    palette: dict[str, str],
+) -> str:
+    """Draw a matrix as colored cells. Larger values are darker teal."""
+    matrix = spec.data.get("matrix")
+    if not isinstance(matrix, list) or not matrix:
+        msg = "heatmap requires matrix"
+        raise ValueError(msg)
+    rows = [list(row) for row in matrix]
+    n_rows = len(rows)
+    n_cols = len(rows[0])
+    flat = [float(value) for row in rows for value in row]
+    low, high = min(flat), max(flat)
+    if high == low:
+        high = low + 1.0
+    parts = _svg_shell(
+        width,
+        height,
+        pad_l,
+        pad_t,
+        plot_w,
+        plot_h,
+        palette,
+        str(spec.data.get("xlabel", "")),
+        str(spec.data.get("ylabel", "")),
+    )
+    cell_w = plot_w / n_cols
+    cell_h = plot_h / n_rows
+    xlabels = spec.data.get("xlabels") or []
+    ylabels = spec.data.get("ylabels") or []
+    for row_index, row in enumerate(rows):
+        for col_index, value in enumerate(row):
+            number = float(value)
+            tone = (number - low) / (high - low)
+            # Mix the canvas toward teal. The peak is #0d9488.
+            low_red, low_green, low_blue = (
+                int(part) for part in palette["heat_low"].split(",")
+            )
+            red = int(low_red + tone * (13 - low_red))
+            green = int(low_green + tone * (148 - low_green))
+            blue = int(low_blue + tone * (136 - low_blue))
+            x = pad_l + col_index * cell_w
+            y = pad_t + row_index * cell_h
+            tip = html.escape(f"{number:.4g}")
+            parts.append(
+                f"<rect x='{x:.1f}' y='{y:.1f}' width='{cell_w:.1f}' "
+                f"height='{cell_h:.1f}' fill='rgb({red},{green},{blue})' "
+                f"data-tip='{tip}'/>"
+            )
+        if row_index < len(ylabels):
+            parts.append(
+                f"<text x='{pad_l - 6}' y='{pad_t + (row_index + 0.7) * cell_h:.1f}' "
+                f"text-anchor='end' fill='{palette['muted']}' font-size='10'>"
+                f"{html.escape(str(ylabels[row_index]))}</text>"
+            )
+    for col_index, label in enumerate(xlabels):
+        parts.append(
+            f"<text x='{pad_l + (col_index + 0.5) * cell_w:.1f}' "
+            f"y='{pad_t + plot_h + 14}' text-anchor='middle' "
+            f"fill='{palette['muted']}' font-size='10'>"
+            f"{html.escape(str(label))}</text>"
+        )
     parts.append("</svg>")
     return "\n".join(p for p in parts if not p.startswith("<!--uid:"))
 
@@ -697,11 +887,50 @@ def _svg_scatter(
         )
         parts.append(
             f"<circle class='hit' cx='{a:.1f}' cy='{b:.1f}' r='4.5' "
-            f"fill='{palette['accent']}' stroke='#fff' stroke-width='2' "
+            f"fill='{palette['accent']}' stroke='{palette['card_bg']}' "
+            f"stroke-width='2' "
             f"data-tip='{tip}'/>"
         )
     parts.append("</svg>")
     return "\n".join(p for p in parts if not p.startswith("<!--uid:"))
+
+
+_DARK_REPORT_CSS = """
+    :root {
+      --bg: #0c121b;
+      --ink: #e7eef6;
+      --muted: #93a4b8;
+      --card: #161e2b;
+      --line: #314158;
+      --shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    }
+    html, body { background: #0c121b !important; color: #e7eef6 !important; }
+    .toolbar {
+      background: #161e2b !important;
+      border-bottom-color: #314158 !important;
+      color: #e7eef6 !important;
+    }
+    .toolbar-brand, .brand { color: #2dd4bf !important; }
+    .hero {
+      background: #161e2b !important;
+      border-color: #314158 !important;
+      color: #e7eef6 !important;
+    }
+    .panel, .metric, .diag {
+      background: #0c121b !important;
+      border-color: #314158 !important;
+      color: #e7eef6 !important;
+    }
+    h1, h2, h3, figcaption, .metric-val, td { color: #e7eef6 !important; }
+    .lede, .panel-lede, .metric-key, th, .muted { color: #93a4b8 !important; }
+    .help-tip {
+      background: #161e2b !important;
+      color: #2dd4bf !important;
+      border-color: #314158 !important;
+    }
+    code { color: #e7eef6 !important; }
+    .chart svg, .chart-svg { filter: none !important; }
+"""
 
 
 def _wrap(title: str, body: str) -> str:
@@ -953,7 +1182,7 @@ def _wrap(title: str, body: str) -> str:
     th {{ color: var(--muted); font-weight: 600; font-size: 0.72rem; }}
     .figures {{
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 0.85rem;
     }}
     .figures-solo {{
@@ -1017,6 +1246,7 @@ def _wrap(title: str, body: str) -> str:
     }}
     @media (max-width: 820px) {{
       .band {{ grid-template-columns: 1fr; }}
+      .figures {{ grid-template-columns: 1fr; }}
     }}
     @media print {{
       @page {{ size: A4; margin: 10mm; }}

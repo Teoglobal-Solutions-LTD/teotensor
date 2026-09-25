@@ -7,8 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Dataset`: one index per row. CSV, MNIST IDX zip, and in-memory arrays
+  fill it. Splits and minibatches move indices. `scale` is a per-row map;
+  `Standardize` is fit on training indices only. The trainer batches with
+  those indices, and the studio trains on `train_idx`.
+- Multilayer perceptron (`MLPClassifier`, `MLPRegressor`) on a NumPy
+  reverse-mode tape: layers, losses, penalties, SGD / Adam / RMSprop,
+  schedules, traces, diagnostics, playback frames, and `.ttw` weight files.
+  PCA can export the same weight file. `open_studio()` serves a localhost
+  page for PCA and both MLPs.
+
+### Removed
+
+- The PCA test that compared results with scikit-learn. The `dev` extra no
+  longer installs scikit-learn.
+
 ### Changed
 
+- The studio dataset screen picks one source: pasted rows, a file, or an
+  http(s) URL. Image rows preview in a table column sized from the frame.
+- The studio walks a session: dataset, then model, then train or infer.
+  Scaling is a divisor you type. Inference loads a `.ttw` file and scores
+  every row.
 - Point CI triggers, project URLs, and docs `repo_url` at the organization
   repository (`Teoglobal-Solutions-LTD/teotensor`) and the `develop` branch.
 - Upgrade `export_html` to a denser one-page observation report with a
